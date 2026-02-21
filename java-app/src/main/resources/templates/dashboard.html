@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative To-Do List — Java</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 24px; }
+
+        /* Header */
+        .header { background: #2e5c8a; color: white; padding: 20px 24px;
+            border-radius: 10px; margin-bottom: 24px; text-align: center}
+        .header h1 { font-size: 1.5rem; }
+        .header p  { font-size: 0.82rem; opacity: 0.75; margin-top: 4px; }
+
+        /* Stats */
+        .stats { display: flex; gap: 14px; margin-bottom: 24px; }
+        .stat  { flex: 1; background: white; border-radius: 8px; padding: 14px;
+            text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        .stat .num { font-size: 1.8rem; font-weight: bold; color: #2e5c8a; }
+        .stat .lbl { font-size: 0.78rem; color: #888; margin-top: 3px; }
+
+        /* Flash messages */
+        .msg { padding: 11px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem; }
+        .msg.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .msg.error   { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Two column layout */
+        .layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+        @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+
+        /* Card */
+        .card { background: white; border-radius: 10px; padding: 20px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+        .card h2 { font-size: 1rem; color: #2e5c8a; margin-bottom: 16px;
+            padding-bottom: 10px; border-bottom: 2px solid #eef2f7; }
+
+        /* Task item */
+        .task-item { display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 0; border-bottom: 1px solid #f0f2f5; }
+        .task-item:last-child { border-bottom: none; }
+        .task-info { flex: 1; min-width: 0; }
+        .task-title { font-weight: 600; font-size: 0.95rem; }
+        .task-title.done { text-decoration: line-through; color: #bbb; }
+        .task-desc { font-size: 0.82rem; color: #777; margin-top: 3px; }
+        .task-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; align-items: center; }
+
+        /* Badges */
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px;
+            font-size: 0.73rem; font-weight: 600; }
+        .cat-WORK     { background: #dbeafe; color: #1e40af; }
+        .cat-PERSONAL { background: #fce7f3; color: #9d174d; }
+        .cat-URGENT   { background: #fee2e2; color: #991b1b; }
+        .cat-OTHER    { background: #e5e7eb; color: #374151; }
+        .status-PENDING     { background: #fef3c7; color: #92400e; }
+        .status-IN_PROGRESS { background: #dbeafe; color: #1e40af; }
+        .status-COMPLETED   { background: #d1fae5; color: #065f46; }
+        .status-BLOCKED     { background: #fee2e2; color: #991b1b; }
+        .status-CANCELLED   { background: #e5e7eb; color: #6b7280; }
+
+        .assigned { font-size: 0.78rem; color: #666; }
+
+        /* Status change inline form */
+        .status-form { display: flex; gap: 6px; align-items: center; margin-top: 10px; }
+        .status-form select { padding: 5px 8px; border: 1px solid #ddd;
+            border-radius: 5px; font-size: 0.78rem; }
+
+        /* Task action buttons */
+        .task-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+        .btn { padding: 5px 12px; border: none; border-radius: 6px; cursor: pointer;
+            font-size: 0.78rem; font-weight: 600; text-decoration: none;
+            display: inline-block; text-align: center; }
+        .btn-blue   { background: #2e5c8a; color: white; }
+        .btn-gray   { background: #f0f2f5; color: #333; }
+        .btn-red    { background: #fee2e2; color: #991b1b; }
+        .btn-submit { width: 100%; padding: 9px; font-size: 0.88rem;
+            background: #2e5c8a; color: white; border: none;
+            border-radius: 6px; cursor: pointer; font-weight: 600; }
+
+        /* Add task form */
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; font-size: 0.82rem; font-weight: 600;
+            color: #444; margin-bottom: 5px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 8px 10px; border: 1px solid #ddd;
+            border-radius: 6px; font-size: 0.88rem; font-family: inherit; }
+        .form-group textarea { resize: vertical; height: 60px; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: #2e5c8a; }
+
+        /* Empty state */
+        .empty { text-align: center; padding: 48px 20px; color: #bbb; }
+        .empty strong { font-size: 1rem; color: #aaa; }
+        .empty p { font-size: 0.85rem; margin-top: 6px; }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header -->
+    <div class="header">
+       <h1>To-Do List</h1>
+
+    </div>
+
+    <!-- Stats row — values injected by Thymeleaf from model.addAttribute() in Controller -->
+    <div class="stats">
+        <div class="stat">
+            <div class="num" th:text="${totalCount}">0</div>
+            <div class="lbl">Total</div>
+        </div>
+        <div class="stat">
+            <div class="num" th:text="${pendingCount}">0</div>
+            <div class="lbl">Pending</div>
+        </div>
+        <div class="stat">
+            <div class="num" th:text="${inProgressCount}">0</div>
+            <div class="lbl">In Progress</div>
+        </div>
+        <div class="stat">
+            <div class="num" th:text="${completedCount}">0</div>
+            <div class="lbl">Completed</div>
+        </div>
+        <div class="stat">
+            <div class="num" th:text="${blockedCount}">0</div>
+            <div class="lbl">Blocked</div>
+        </div>
+        <div class="stat">
+            <div class="num" th:text="${cancelledCount}">0</div>
+            <div class="lbl">Cancelled</div>
+        </div>
+    </div>
+
+    <!-- Flash messages from RedirectAttributes -->
+    <div class="msg success" th:if="${successMessage}" th:text="${successMessage}"></div>
+    <div class="msg error"   th:if="${errorMessage}"   th:text="${errorMessage}"></div>
+
+    <div class="layout">
+
+        <!-- ── Left: All Tasks ──────────────────────────────────────── -->
+        <div class="card">
+            <h2>All Tasks</h2>
+
+            <!-- Empty state -->
+            <div class="empty" th:if="${tasks.isEmpty()}">
+                <strong>No tasks yet</strong>
+                <p>Use the form on the right to add your first task.</p>
+            </div>
+
+            <!--
+                th:each="task : ${tasks}"
+                Iterates the List<Task> from model.addAttribute("tasks", taskService.getAllTasks())
+                Every field on Task is accessible as ${task.fieldName} via its getter.
+            -->
+            <div th:each="task : ${tasks}" class="task-item">
+                <div class="task-info">
+
+                    <!-- Title — th:classappend adds 'done' class if task is completed -->
+                    <div class="task-title"
+                         th:text="${task.title}"
+                         th:classappend="${task.status.name() == 'COMPLETED'} ? ' done' : ''">
+                    </div>
+
+                    <!-- Description — only shown if not empty -->
+                    <div class="task-desc"
+                         th:if="${task.description != null and !task.description.isEmpty()}"
+                         th:text="${task.description}">
+                    </div>
+
+                    <div class="task-meta">
+                        <!-- Category badge — class name built from enum constant name -->
+                        <span class="badge"
+                              th:text="${task.category.displayName}"
+                              th:classappend="'cat-' + ${task.category.name()}">
+                        </span>
+
+                        <!-- Status badge -->
+                        <span class="badge"
+                              th:text="${task.status.displayName}"
+                              th:classappend="'status-' + ${task.status.name()}">
+                        </span>
+
+                        <!-- Assigned user — look up username by matching user.id to task.assignedUserId -->
+                        <span class="assigned">
+                            Assigned:
+                            <th:block th:each="user : ${users}"
+                                      th:if="${user.id == task.assignedUserId}"
+                                      th:text="${user.username}">
+                            </th:block>
+                        </span>
+                    </div>
+
+                    <!--
+                        Status change dropdown.
+                        Hidden for terminal states (COMPLETED, CANCELLED).
+                        Options filtered to only valid transitions via canTransitionTo().
+                    -->
+                    <div th:unless="${task.status.name() == 'COMPLETED' or task.status.name() == 'CANCELLED'}" class="status-form">
+                        <form th:action="@{/tasks/{id}/status(id=${task.id})}" method="post">
+                            <select name="status">
+                                <option value="">Change status...</option>
+                                <option th:each="s : ${statuses}"
+                                        th:if="${task.status.canTransitionTo(s) and s != task.status}"
+                                        th:value="${s.name()}"
+                                        th:text="${s.displayName}">
+                                </option>
+                            </select>
+                            <button type="submit" class="btn btn-blue">Go</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Edit / Delete buttons -->
+                <div class="task-actions">
+                    <a th:href="@{/tasks/{id}/edit(id=${task.id})}"
+                       class="btn btn-gray">Edit</a>
+                    <form th:action="@{/tasks/{id}/delete(id=${task.id})}"
+                          method="post"
+                          onsubmit="return confirm('Delete this task?')">
+                        <button type="submit" class="btn btn-red">Delete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Right: Add Task Form ──────────────────────────────────── -->
+        <div class="card">
+            <h2>Add Task</h2>
+
+            <!--
+                All dropdowns populated from the Model via Thymeleaf.
+                Controller dashboard() passes:
+                    model.addAttribute("users", userService.getAllUsers())
+                    model.addAttribute("categories", Category.values())
+            -->
+            <form action="/tasks/add" method="post">
+
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input type="text" name="title"
+                           placeholder="What needs to be done?" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description"
+                              placeholder="Optional details..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Assign To *</label>
+                    <!--
+                        th:value="${user.id}" — posts the UUID to the Controller
+                        th:text="${user.username}" — shows the readable name
+                    -->
+                    <select name="assignedUserId" required>
+                        <option value="">Select user...</option>
+                        <option th:each="user : ${users}"
+                                th:value="${user.id}"
+                                th:text="${user.username}">
+                        </option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Category *</label>
+                    <!--
+                        th:value="${cat.name()}" — posts "WORK", "PERSONAL" etc.
+                        th:text="${cat.displayName}" — shows "Work", "Personal" etc.
+                    -->
+                    <select name="category" required>
+                        <option value="">Select category...</option>
+                        <option th:each="cat : ${categories}"
+                                th:value="${cat.name()}"
+                                th:text="${cat.displayName}">
+                        </option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn-submit">Add Task</button>
+            </form>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>

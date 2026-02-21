@@ -10,7 +10,7 @@ public class Task {
     private String description;
     private Category category;
     private TaskStatus status;
-    private final String assignedUserId;
+    private  String assignedUserId;
     private final LocalDateTime createdDate;
     private LocalDateTime completedDate;
 
@@ -35,7 +35,6 @@ public class Task {
         this.completedDate = null;
     }
 
-    // Getters
     public String getId() {
         return id;
     }
@@ -78,6 +77,10 @@ public class Task {
             throw new IllegalArgumentException("Title cannot be empty");
         }
         this.title = title;
+    }
+
+    public void setAssignedUserId(String assignedUserId) {
+        this.assignedUserId = assignedUserId;
     }
 
     public void setDescription(String description) {

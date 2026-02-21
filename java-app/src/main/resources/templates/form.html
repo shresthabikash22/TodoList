@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Task</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a2e; }
+        .container { max-width: 520px; margin: 50px auto; padding: 24px; }
+        .card { background: white; border-radius: 10px; padding: 30px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+        h1 { font-size: 1.2rem; color: #2e5c8a; margin-bottom: 22px;
+            padding-bottom: 12px; border-bottom: 2px solid #eef2f7; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-size: 0.83rem; font-weight: 600;
+            color: #444; margin-bottom: 5px; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 9px 11px; border: 1px solid #ddd;
+            border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+        .form-group textarea { resize: vertical; height: 70px; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            outline: none; border-color: #2e5c8a; }
+        .actions { display: flex; gap: 10px; margin-top: 22px; }
+        .btn { padding: 9px 20px; border: none; border-radius: 6px; cursor: pointer;
+            font-size: 0.88rem; font-weight: 600; text-decoration: none; }
+        .btn-blue { background: #2e5c8a; color: white; }
+        .btn-gray { background: #f0f2f5; color: #333; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card">
+        <h1>Add New Task</h1>
+        <form action="/tasks/add" method="post">
+            <div class="form-group">
+                <label>Title *</label>
+                <input type="text" name="title"
+                       placeholder="Enter task title" required autofocus>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description"
+                          placeholder="Optional — add details about this task"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Assign To *</label>
+                <select name="assignedUserId" required>
+                    <option value="">Select a user...</option>
+                    <option th:each="user : ${users}"
+                            th:value="${user.id}"
+                            th:text="${user.username}">
+                    </option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Category *</label>
+                <select name="category" required>
+                    <option value="">Select a category...</option>
+                    <option th:each="cat : ${categories}"
+                            th:value="${cat.name()}"
+                            th:text="${cat.displayName}">
+                    </option>
+                </select>
+            </div>
+            <div class="actions">
+                <button type="submit" class="btn btn-blue">Add Task</button>
+                <a href="/static" class="btn btn-gray">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>
