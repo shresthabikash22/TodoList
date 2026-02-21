@@ -1,0 +1,24 @@
+
+{
+  "name": "todolist-js",
+  "version": "1.0.0",
+  "description": "JavaScript implementation of collaborative todo list",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "demo": "node demo/concurrencyDemo.js"
+  },
+  "keywords": ["todo", "express", "ejs"],
+  "author": "Bikash & Shruthi",
+  "license": "ISC",
+  "dependencies": {
+    "ejs": "^4.0.1",
+    "express": "^5.2.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
