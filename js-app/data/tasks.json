@@ -1,42 +1,42 @@
 [
   {
-    "id": "b3938927-d492-41b2-9f14-a4f8f813de80",
+    "id": "521774ac-a910-49ea-a634-7619884a2949",
     "title": "Complete project report",
     "description": "Finish the quarterly report for team review",
     "category": "WORK",
     "status": "BLOCKED",
-    "assignedUserId": "aa26dab2-bb77-48e0-bf05-6c0c46676e96",
-    "createdDate": "2026-02-22T03:42:05.691Z",
+    "assignedUserId": "8b3dd021-2350-4844-9624-7bb8f8a9b434",
+    "createdDate": "2026-02-22T13:42:00.244Z",
     "completedDate": null
   },
   {
-    "id": "fc9b2659-049a-4793-9613-2461bb313a21",
+    "id": "df93769b-5dd0-4526-92b4-892fe01e75bf",
     "title": "Fix production bug",
     "description": "Critical issue affecting the checkout process",
     "category": "URGENT",
     "status": "PENDING",
-    "assignedUserId": "6059c5dd-902f-44c6-b9af-2df024e09a13",
-    "createdDate": "2026-02-22T03:42:05.691Z",
+    "assignedUserId": "68a2333e-afb9-42e4-a331-9e87cc9e0db2",
+    "createdDate": "2026-02-22T13:42:00.246Z",
     "completedDate": null
   },
   {
-    "id": "688a5dee-ead4-428d-8b90-8063314018f6",
+    "id": "66837959-5727-4d7c-b1d0-75ba114a34c4",
     "title": "Buy birthday gift",
     "description": "Get something nice before the weekend",
     "category": "PERSONAL",
     "status": "PENDING",
-    "assignedUserId": "aa26dab2-bb77-48e0-bf05-6c0c46676e96",
-    "createdDate": "2026-02-22T03:42:05.691Z",
+    "assignedUserId": "8b3dd021-2350-4844-9624-7bb8f8a9b434",
+    "createdDate": "2026-02-22T13:42:00.246Z",
     "completedDate": null
   },
   {
-    "id": "70dd4417-b3e4-4d2c-807c-7b7cb0ec805d",
+    "id": "b01fcd54-2907-44ba-a3ed-43573c6f1ea8",
     "title": "Weekly team sync",
     "description": "Prepare agenda and meeting notes",
     "category": "WORK",
     "status": "PENDING",
-    "assignedUserId": "6059c5dd-902f-44c6-b9af-2df024e09a13",
-    "createdDate": "2026-02-22T03:42:05.691Z",
+    "assignedUserId": "68a2333e-afb9-42e4-a331-9e87cc9e0db2",
+    "createdDate": "2026-02-22T13:42:00.246Z",
     "completedDate": null
   }
 ]
