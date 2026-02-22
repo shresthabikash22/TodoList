@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative To-Do List — JavaScript</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .header h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        /* Flash messages */
+        .msg {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.95rem;
+            animation: slideDown 0.3s ease;
+        }
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .msg.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .msg.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-5px); }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+            line-height: 1.2;
+        }
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Main Layout */
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 25px;
+        }
+        @media (max-width: 768px) {
+            .main-layout { grid-template-columns: 1fr; }
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            font-size: 1.3rem;
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f2f5;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Task List */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .task-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            transition: background 0.2s;
+        }
+        .task-item:hover { background: #f0f2f5; }
+        .task-content { flex: 1; }
+        .task-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        .task-title.completed {
+            text-decoration: line-through;
+            color: #999;
+        }
+        .task-desc {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .category-WORK { background: #e3f2fd; color: #1976d2; }
+        .category-PERSONAL { background: #f3e5f5; color: #7b1fa2; }
+        .category-URGENT { background: #ffebee; color: #c62828; }
+        .category-OTHER { background: #e8eaf6; color: #3949ab; }
+
+        .status-PENDING { background: #fff3e0; color: #f57c00; }
+        .status-IN_PROGRESS { background: #e8f0fe; color: #1976d2; }
+        .status-COMPLETED { background: #e8f5e9; color: #388e3c; }
+        .status-BLOCKED { background: #ffebee; color: #c62828; }
+        .status-CANCELLED { background: #fafafa; color: #757575; }
+
+        /* Status Form */
+        .status-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 10px;
+        }
+        .status-form select {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            flex: 1;
+        }
+        .status-form select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .btn-sm { padding: 5px 12px; font-size: 0.85rem; }
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: 1px solid #5a67d8;
+        }
+        .btn-primary:hover { background: #5a67d8; }
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #4a5568;
+            border: 1px solid #cbd5e0;
+        }
+        .btn-secondary:hover { background: #cbd5e0; }
+        .btn-danger {
+            background: #feb2b2;
+            color: #c53030;
+            border: 1px solid #fc8181;
+        }
+        .btn-danger:hover { background: #fc8181; }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #999;
+        }
+        .empty-state p {
+            margin-top: 10px;
+            font-size: 0.95rem;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .filter-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+        .filter-badge {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+        .clear-filter {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .clear-filter:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <h1>📋 To-Do List</h1>
+
+    </div>
+
+    <!-- Flash Messages -->
+    <% if (successMessage) { %>
+        <div class="msg success"><%= successMessage %></div>
+    <% } %>
+    <% if (errorMessage) { %>
+        <div class="msg error"><%= errorMessage %></div>
+    <% } %>
+
+    <!-- Filter Bar (if filtering by user) -->
+    <% if (filterUser) { %>
+        <div class="filter-bar">
+            <span class="filter-label">Filtering by user:</span>
+            <span class="filter-badge"><%= filterUser.username %></span>
+            <a href="/" class="clear-filter">Clear filter</a>
+        </div>
+    <% } %>
+
+    <!-- Stats Grid -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number"><%= totalCount %></div>
+            <div class="stat-label">Total Tasks</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number"><%= pendingCount %></div>
+            <div class="stat-label">Pending</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number"><%= inProgressCount %></div>
+            <div class="stat-label">In Progress</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number"><%= completedCount %></div>
+            <div class="stat-label">Completed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number"><%= blockedCount %></div>
+            <div class="stat-label">Blocked</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number"><%= cancelledCount %></div>
+            <div class="stat-label">Cancelled</div>
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="main-layout">
+        <!-- Left Column: Task List -->
+        <div class="card">
+            <h2>📌 Tasks</h2>
+
+            <% if (tasks && tasks.length > 0) { %>
+                <div class="task-list">
+                    <% tasks.forEach(task => {
+                        const assignedUser = users.find(u => u.id === task.assignedUserId);
+                    %>
+                    <div class="task-item">
+                        <div class="task-content">
+                            <div class="task-title <%= task.isCompleted() ? 'completed' : '' %>">
+                                <%= task.title %>
+                            </div>
+
+                            <% if (task.description) { %>
+                                <div class="task-desc"><%= task.description %></div>
+                            <% } %>
+
+                            <div class="task-meta">
+                                        <span class="badge category-<%= task.category.name %>">
+                                            <%= task.category.displayName %>
+                                        </span>
+                                <span class="badge status-<%= task.status.name %>">
+                                            <%= task.status.displayName %>
+                                        </span>
+                                <span class="assigned">
+                                            👤 <%= assignedUser ? assignedUser.username : 'Unknown' %>
+                                        </span>
+                            </div>
+
+                            <% if (task.status.name !== 'COMPLETED' && task.status.name !== 'CANCELLED') { %>
+                                <form action="/tasks/<%= task.id %>/status" method="post" class="status-form">
+                                    <select name="status">
+                                        <option value="">Change status...</option>
+                                        <% statuses.forEach(s => {
+                                        if (task.status.name !== s.name) { %>
+                                            <option value="<%= s.name %>"><%= s.displayName %></option>
+                                        <% } }); %>
+                                    </select>
+                                    <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                                </form>
+                            <% } %>
+                        </div>
+
+                        <div class="task-actions">
+                            <a href="/tasks/<%= task.id %>/edit" class="btn btn-secondary btn-sm">Edit</a>
+                            <form action="/tasks/<%= task.id %>/delete" method="post"
+                                  onsubmit="return confirm('Delete this task?')">
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
+                    </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <div class="empty-state">
+                    <div style="font-size: 3rem;">📭</div>
+                    <p>No tasks yet. Create your first task!</p>
+                </div>
+            <% } %>
+        </div>
+
+        <!-- Right Column: Add Task Form -->
+        <div class="card">
+            <h2>✨ Add New Task</h2>
+
+            <form action="/tasks/add" method="post">
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input type="text" name="title" placeholder="What needs to be done?" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" placeholder="Add details..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>Assign To *</label>
+                    <select name="assignedUserId" required>
+                        <option value="">Select user...</option>
+                        <% users.forEach(user => { %>
+                            <option value="<%= user.id %>"><%= user.username %></option>
+                        <% }); %>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Category *</label>
+                    <select name="category" required>
+                        <option value="">Select category...</option>
+                        <% categories.forEach(cat => { %>
+                            <option value="<%= cat.name %>"><%= cat.displayName %></option>
+                        <% }); %>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Add Task</button>
+            </form>
+
+            <!-- Quick Add User Form -->
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f2f5;">
+                <h3 style="font-size: 1rem; margin-bottom: 15px; color: #666;">➕ Add New User</h3>
+                <form action="/users/add" method="post">
+                    <div class="form-group">
+                        <input type="text" name="username" placeholder="Username" required>
+                    </div>
+                    <button type="submit" class="btn btn-secondary" style="width: 100%;">Create User</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

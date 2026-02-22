@@ -8,101 +8,107 @@ const __dirname = path.dirname(__filename);
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
+/*
+ * JAVASCRIPT CONCURRENCY NOTE:
+ *
+ * Node.js is single-threaded. Only one operation runs at a time on these
+ * Maps — no locks or synchronization needed. This contrasts directly with
+ * the Java implementation which uses ReentrantLock on every write.
+ *
+ * The async/await here is for file I/O only, not for thread safety.
+ */
+
+// Module-level Maps — one instance shared for the entire process lifetime.
+// usersById:       id → User
+// usersByUsername: username → User  (for fast duplicate username checks)
+const usersById = new Map();
+const usersByUsername = new Map();
+let loaded = false;
+
+async function ensureLoaded() {
+    if (loaded) return;
+    try {
+        await fs.mkdir(DATA_DIR, { recursive: true });
+        const data = await fs.readFile(USERS_FILE, 'utf8');
+        const usersArray = JSON.parse(data);
+        usersArray.forEach(userData => {
+            const user = User.fromJSON(userData);
+            usersById.set(user.id, user);
+            usersByUsername.set(user.username.toLowerCase(), user);
+        });
+        console.log(`UserRepository: loaded ${usersById.size} users from disk.`);
+    } catch {
+        // File doesn't exist yet — start empty
+    }
+    loaded = true;
+}
+
+async function persistToDisk() {
+    await fs.mkdir(DATA_DIR, { recursive: true });
+    const usersArray = Array.from(usersById.values()).map(u => u.toJSON());
+    await fs.writeFile(USERS_FILE, JSON.stringify(usersArray, null, 2));
+}
+
 class UserRepository {
-    constructor() {
-        this.users = new Map(); // In-memory cache
-        this.usernameToId = new Map(); // For username lookups
-    }
-
-    async ensureDataDir() {
-        try {
-            await fs.mkdir(DATA_DIR, { recursive: true });
-        } catch (error) {
-            console.error('Error creating data directory:', error);
-        }
-    }
-
-    async loadFromFile() {
-        await this.ensureDataDir();
-        try {
-            const data = await fs.readFile(USERS_FILE, 'utf8');
-            const usersArray = JSON.parse(data);
-            this.users.clear();
-            this.usernameToId.clear();
-
-            usersArray.forEach(userData => {
-                const user = User.fromJSON(userData);
-                this.users.set(user.id, user);
-                this.usernameToId.set(user.username.toLowerCase(), user.id);
-            });
-        } catch (error) {
-            // File doesn't exist yet, start with empty map
-            this.users.clear();
-            this.usernameToId.clear();
-        }
-    }
-
-    async saveToFile() {
-        await this.ensureDataDir();
-        const usersArray = Array.from(this.users.values()).map(user => user.toJSON());
-        await fs.writeFile(USERS_FILE, JSON.stringify(usersArray, null, 2));
-    }
 
     async save(user) {
-        await this.loadFromFile();
-        this.users.set(user.id, user);
-        this.usernameToId.set(user.username.toLowerCase(), user.id);
-        await this.saveToFile();
+        await ensureLoaded();
+        // If username changed, remove old username key
+        const existing = usersById.get(user.id);
+        if (existing && existing.username !== user.username) {
+            usersByUsername.delete(existing.username.toLowerCase());
+        }
+        usersById.set(user.id, user);
+        usersByUsername.set(user.username.toLowerCase(), user);
+        await persistToDisk();
         return user;
     }
 
     async findById(id) {
-        await this.loadFromFile();
-        return this.users.get(id) || null;
+        await ensureLoaded();
+        return usersById.get(id) || null;
     }
 
     async findByUsername(username) {
-        await this.loadFromFile();
-        const id = this.usernameToId.get(username.toLowerCase());
-        return id ? this.users.get(id) || null : null;
+        await ensureLoaded();
+        return usersByUsername.get(username.toLowerCase()) || null;
     }
 
     async findAll() {
-        await this.loadFromFile();
-        return Array.from(this.users.values());
-    }
-
-    async deleteById(id) {
-        await this.loadFromFile();
-        const user = this.users.get(id);
-        if (user) {
-            this.users.delete(id);
-            this.usernameToId.delete(user.username.toLowerCase());
-            await this.saveToFile();
-            return true;
-        }
-        return false;
+        await ensureLoaded();
+        return Array.from(usersById.values());
     }
 
     async exists(id) {
-        await this.loadFromFile();
-        return this.users.has(id);
+        await ensureLoaded();
+        return usersById.has(id);
     }
 
     async existsByUsername(username) {
-        await this.loadFromFile();
-        return this.usernameToId.has(username.toLowerCase());
+        await ensureLoaded();
+        return usersByUsername.has(username.toLowerCase());
+    }
+
+    async deleteById(id) {
+        await ensureLoaded();
+        const user = usersById.get(id);
+        if (!user) return false;
+        usersById.delete(id);
+        usersByUsername.delete(user.username.toLowerCase());
+        await persistToDisk();
+        return true;
     }
 
     async count() {
-        await this.loadFromFile();
-        return this.users.size;
+        await ensureLoaded();
+        return usersById.size;
     }
 
     async clear() {
-        this.users.clear();
-        this.usernameToId.clear();
-        await this.saveToFile();
+        await ensureLoaded();
+        usersById.clear();
+        usersByUsername.clear();
+        await persistToDisk();
     }
 }
 

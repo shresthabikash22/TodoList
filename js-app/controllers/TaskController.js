@@ -2,7 +2,7 @@ import express from 'express';
 import TaskService from '../services/TaskService.js';
 import UserService from '../services/UserService.js';
 import { getAllCategories } from '../models/Category.js';
-import { getAllStatuses, getStatusByName } from '../models/TaskStatus.js';
+import { getAllStatuses, getStatusByName, canTransitionTo } from '../models/TaskStatus.js';
 
 const router = express.Router();
 const taskService = new TaskService();
@@ -20,8 +20,11 @@ router.use((req, res, next) => {
 // Dashboard - Home page
 router.get('/', async (req, res) => {
     try {
+        console.log('📊 Dashboard route accessed');
         const tasks = await taskService.getAllTasks();
+        console.log(`✅ Found ${tasks.length} tasks`);
         const users = await userService.getAllUsers();
+        console.log(`✅ Found ${users.length} users`);
 
         // Calculate stats
         const totalCount = tasks.length;
@@ -30,6 +33,15 @@ router.get('/', async (req, res) => {
         const completedCount = tasks.filter(t => t.status.name === 'COMPLETED').length;
         const blockedCount = tasks.filter(t => t.status.name === 'BLOCKED').length;
         const cancelledCount = tasks.filter(t => t.status.name === 'CANCELLED').length;
+
+        console.log('📊 Stats:', {
+            totalCount,
+            pendingCount,
+            inProgressCount,
+            completedCount,
+            blockedCount,
+            cancelledCount
+        });
 
         res.render('dashboard', {
             tasks,
@@ -45,6 +57,7 @@ router.get('/', async (req, res) => {
             cancelledCount
         });
     } catch (error) {
+        console.error('❌ Error in dashboard route:', error);
         res.render('dashboard', {
             tasks: [],
             users: [],
@@ -103,23 +116,71 @@ router.post('/tasks/:id/delete', async (req, res) => {
     res.redirect('/');
 });
 
-// Update task status
+// FIXED STATUS ROUTE - with proper error messaging
 router.post('/tasks/:id/status', async (req, res) => {
+    console.log('\n' + '='.repeat(60));
+    console.log('🔴 STATUS UPDATE ATTEMPTED');
+    console.log('='.repeat(60));
+    console.log('Task ID:', req.params.id);
+    console.log('Requested status:', req.body.status);
+    console.log('Request body:', req.body);
+
     try {
         const { id } = req.params;
         const { status } = req.body;
 
+        // Check if status was provided
+        if (!status || status === '') {
+            console.log('❌ No status selected');
+            req.session.errorMessage = 'Please select a status from the dropdown';
+            console.log('✅ Session error set:', req.session.errorMessage);
+            return res.redirect('/');
+        }
+
+        // Get current task
+        console.log('Fetching task...');
+        const currentTask = await taskService.getTaskById(id);
+        if (!currentTask) {
+            console.log('❌ Task not found');
+            req.session.errorMessage = 'Task not found';
+            return res.redirect('/');
+        }
+        console.log('✅ Task found:', currentTask.title);
+        console.log('Current status:', currentTask.status.name);
+
+        // Get status object
+        const statusObj = getStatusByName(status);
+        console.log('Status object:', statusObj.name);
+
+        // Check if transition is allowed using canTransitionTo from TaskStatus
+        const isValid = canTransitionTo(currentTask.status, statusObj);
+        console.log('Transition allowed?', isValid ? '✅ YES' : '❌ NO');
+
+        if (!isValid) {
+            // This is the key part - setting error message for invalid transition
+            req.session.errorMessage = `Invalid transition: Cannot change from "${currentTask.status.displayName}" to "${statusObj.displayName}".`;
+            console.log('✅ Session error set:', req.session.errorMessage);
+            return res.redirect('/');
+        }
+
+        // Perform the update
+        console.log('Performing status update...');
         const updated = await taskService.updateTaskStatus(id, status);
 
         if (updated) {
-            const statusObj = getStatusByName(status);
             req.session.successMessage = `Status updated to: ${statusObj.displayName}`;
+            console.log('✅ Success message set:', req.session.successMessage);
         } else {
-            req.session.errorMessage = `Invalid transition to '${status}'. Check the allowed status flow.`;
+            req.session.errorMessage = 'Status update failed';
+            console.log('❌ Error message set:', req.session.errorMessage);
         }
+
     } catch (error) {
-        req.session.errorMessage = error.message;
+        console.error('❌ Error:', error.message);
+        req.session.errorMessage = 'Error: ' + error.message;
     }
+
+    console.log('='.repeat(60) + '\n');
     res.redirect('/');
 });
 

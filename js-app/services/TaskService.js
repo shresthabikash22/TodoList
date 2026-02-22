@@ -4,30 +4,63 @@ import Task from '../models/Task.js';
 import { getCategoryByName } from '../models/Category.js';
 import { getStatusByName } from '../models/TaskStatus.js';
 
-
+/*
+ * TaskService — Business logic for task management.
+ *
+ * LANGUAGE-SPECIFIC FEATURES DEMONSTRATED:
+ *
+ * 1. async/await throughout — all operations are non-blocking. While
+ *    a file write is in progress, Node.js can handle other requests.
+ *    This is cooperative multitasking via the event loop.
+ *
+ * 2. No ReentrantLock — Java's TaskService uses explicit locking because
+ *    multiple OS threads can run simultaneously and corrupt shared state.
+ *    Node.js is single-threaded: the event loop ensures only one
+ *    callback executes at a time, so no lock is ever needed.
+ *
+ * 3. Promise.all used by callers (DataInitializer) to fire multiple
+ *    service calls concurrently — the async nature of these methods
+ *    makes that possible. A synchronous method cannot be parallelized
+ *    by Promise.all.
+ *
+ * 4. Destructuring and spread — used throughout for cleaner code.
+ *    JavaScript has no equivalent to Java's final fields or
+ *    defensive copies — immutability is a convention, not enforced.
+ *
+ * 5. typeof checks — JavaScript has no enum type. Category and
+ *    TaskStatus are plain objects, so we check typeof to handle
+ *    both string names and object references as input.
+ */
 class TaskService {
+
     constructor() {
         this.taskRepository = new TaskRepository();
         this.userRepository = new UserRepository();
     }
 
+    // ─────────────────────────────────────────────────────────────────────
+    // WRITE OPERATIONS
+    // All return Promises — callers can await individually or combine
+    // with Promise.all for concurrent execution.
+    // ─────────────────────────────────────────────────────────────────────
+
     async createTask(title, description, category, assignedUserId) {
-        // Validate user exists
+        if (!title || title.trim() === '') {
+            throw new Error('Task title cannot be empty');
+        }
         const userExists = await this.userRepository.exists(assignedUserId);
         if (!userExists) {
             throw new Error(`User not found with id: ${assignedUserId}`);
         }
 
-        // Validate input
-        if (!title || title.trim() === '') {
-            throw new Error('Task title cannot be empty');
-        }
+        const categoryObj = typeof category === 'string'
+            ? getCategoryByName(category)
+            : category;
 
-        const categoryObj = typeof category === 'string' ? getCategoryByName(category) : category;
         const task = new Task(title, description, categoryObj, assignedUserId);
         const savedTask = await this.taskRepository.save(task);
 
-        // Update user's task list
+        // Update user's task reference list
         const user = await this.userRepository.findById(assignedUserId);
         if (user) {
             user.addTask(savedTask.id);
@@ -43,13 +76,16 @@ class TaskService {
             throw new Error(`Task not found with id: ${taskId}`);
         }
 
-        const statusObj = typeof newStatus === 'string' ? getStatusByName(newStatus) : newStatus;
+        const statusObj = typeof newStatus === 'string'
+            ? getStatusByName(newStatus)
+            : newStatus;
+
         const oldStatus = task.status;
-        const updated = task.setStatus(statusObj);
+        const updated = task.setStatus(statusObj); // uses canTransitionTo()
 
         if (updated) {
             await this.taskRepository.save(task);
-            console.log(`  Task status updated: '${oldStatus.displayName}' → '${statusObj.displayName}'`);
+            console.log(`  Status: '${oldStatus.displayName}' → '${statusObj.displayName}'`);
         }
 
         return updated;
@@ -57,11 +93,9 @@ class TaskService {
 
     async deleteTask(taskId) {
         const task = await this.taskRepository.findById(taskId);
-        if (!task) {
-            return false;
-        }
+        if (!task) return false;
 
-        // Remove task reference from user's list
+        // Remove task reference from user
         const user = await this.userRepository.findById(task.assignedUserId);
         if (user) {
             user.removeTask(taskId);
@@ -82,15 +116,19 @@ class TaskService {
     async clearAllTasks() {
         const allUsers = await this.userRepository.findAll();
         for (const user of allUsers) {
-            // Take a snapshot of task IDs
-            const taskIdSnapshot = [...user.taskIds];
-            for (const taskId of taskIdSnapshot) {
+            const snapshot = [...user.taskIds];
+            for (const taskId of snapshot) {
                 user.removeTask(taskId);
             }
             await this.userRepository.save(user);
         }
         await this.taskRepository.clear();
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // READ OPERATIONS
+    // These are safe to run concurrently via Promise.all — no writes.
+    // ─────────────────────────────────────────────────────────────────────
 
     async getTaskById(id) {
         return await this.taskRepository.findById(id);
